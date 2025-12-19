@@ -2,10 +2,29 @@ const mongoose = require("mongoose");
 
 const PatientSchema = new mongoose.Schema(
   {
+    // ===== Patient Identity =====
+    Id: {
+      type: Number,
+      required: true,
+      unique: true,
+      index: true
+    },
+
+    Name: {
+      type: String,
+      required: true,
+      trim: true
+    },
+
+    // ===== Stage Completion Flags =====
+    stages: {
+      preOpCompleted: { type: Boolean, default: false },
+      intraOpCompleted: { type: Boolean, default: false },
+      postOpCompleted: { type: Boolean, default: false }
+    },
+
+    // ===== Pre-Operative =====
     preOp: {
-      Id:{type:Number,unique:true},
-      Name:String,
-      // Pre-operative fields
       Age: Number,
       BMI: Number,
       Diabetes: String,
@@ -32,6 +51,7 @@ const PatientSchema = new mongoose.Schema(
       Surgery_Success_Probability: Number
     },
 
+    // ===== Intra-Operative =====
     intraOp: {
       PreOp_Risk_Score: Number,
       Surgery_Type: String,
@@ -49,6 +69,7 @@ const PatientSchema = new mongoose.Schema(
       IntraOp_Complication_Risk_Percent: Number
     },
 
+    // ===== Post-Operative =====
     postOp: {
       IntraOp_Complication_Risk_Percent: Number,
       Complication_Severity_Score: Number,
@@ -68,7 +89,9 @@ const PatientSchema = new mongoose.Schema(
       Recovery_Duration_Days: Number
     }
   },
-  { timestamps: true }
+  {
+    timestamps: true
+  }
 );
 
 module.exports = mongoose.model("Patient", PatientSchema);

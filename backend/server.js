@@ -6,7 +6,8 @@ require("dotenv").config();
 const preOpRoute = require("./routes/preop");
 const intraOpRoute = require("./routes/intraop");
 const postOpRoute = require("./routes/postop");
-
+const patients=require("./routes/patients")
+const data=require("./routes/data")
 const app = express();
 app.use(cors());
 app.use(express.json());
@@ -15,7 +16,8 @@ app.use(express.json());
 app.use("/api/preop", preOpRoute);
 app.use("/api/intraop", intraOpRoute);
 app.use("/api/postop", postOpRoute);
-
+app.use("/api/patient",patients)
+app.use("/data",data)
 // Connect to MongoDB
 mongoose
   .connect(process.env.MONGO_URL)

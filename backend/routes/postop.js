@@ -1,51 +1,62 @@
 const express = require("express");
 const axios = require("axios");
 const Patient = require("../models/Patient");
+
 const router = express.Router();
 
 router.put("/:id", async (req, res) => {
   try {
-    // 1️⃣ Fetch previous Intra-Op data from DB
-    const patient = await Patient.findById(req.params.id);
+    const patientId = Number(req.params.id);
+
+    // 1️⃣ Fetch patient by custom Id
+    const patient = await Patient.findOne({ Id: patientId });
     if (!patient) {
       return res.status(404).json({ error: "Patient not found" });
     }
 
-    const IntraOp_Complication_Risk_Percent =
-      patient.intraOp?.IntraOp_Complication_Risk_Percent || 0.0;
+    // 2️⃣ Get Intra-Op risk (mandatory dependency)
+    const intraRisk =
+      patient.intraOp?.IntraOp_Complication_Risk_Percent;
 
-    // 2️⃣ Combine previous intra-op value with new post-op input
+    if (intraRisk === undefined) {
+      return res.status(400).json({
+        error: "Intra-operative data missing. Cannot run Post-Op."
+      });
+    }
+
+    // 3️⃣ Combine Intra-Op output with Post-Op inputs
     const postInput = {
-      IntraOp_Complication_Risk_Percent: IntraOp_Complication_Risk_Percent,
+      IntraOp_Complication_Risk_Percent: intraRisk,
       ...req.body
     };
 
-    // 3️⃣ Call FastAPI ML model
+    // 4️⃣ Call FastAPI Post-Op model
     const mlResponse = await axios.post(
       "http://127.0.0.1:8000/predict/post-operative",
       postInput
     );
 
-    // 4️⃣ Add prediction to DB object
+    // 5️⃣ Attach ML output
     const postOpData = {
       ...postInput,
-      Recovery_Duration_Days: mlResponse.data.Recovery_Duration_Days
+      Recovery_Duration_Days:
+        mlResponse.data.Recovery_Duration_Days
     };
 
-    // 5️⃣ Update MongoDB document
-    const updated = await Patient.findByIdAndUpdate(
-      req.params.id,
+    // 6️⃣ Update Post-Op data by custom Id
+    const updatedPatient = await Patient.findOneAndUpdate(
+      { Id: patientId },
       { postOp: postOpData },
       { new: true }
     );
 
-    res.json({
+    res.status(200).json({
       message: "Post-operative data updated with prediction",
-      patient: updated
+      patient: updatedPatient
     });
 
   } catch (error) {
-    console.error(error);
+    console.error(error.message);
     res.status(500).json({ error: "Post-Op prediction failed" });
   }
 });

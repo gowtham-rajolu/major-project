@@ -1,29 +1,44 @@
 const express = require("express");
 const axios = require("axios");
 const Patient = require("../models/Patient");
+
 const router = express.Router();
 
-// CREATE Pre-op Document + Get ML Prediction
-router.post("/", async (req, res) => {
+// UPDATE Pre-op + ML Prediction (by Patient Id)
+router.put("/:id", async (req, res) => {
   try {
-    // 1. Send data to FastAPI ML endpoint
+    const patientId = Number(req.params.id);
+    const preOpInput = req.body;
+
+    // 1️⃣ Check patient exists
+    const patientExists = await Patient.findOne({ Id: patientId });
+    if (!patientExists) {
+      return res.status(404).json({ error: "Patient not found" });
+    }
+
+    // 2️⃣ Send ONLY preOp data to ML
     const mlResponse = await axios.post(
       "http://127.0.0.1:8000/predict/pre-operative",
-      req.body
+      preOpInput
     );
 
-    // 2. Add prediction to document
-    const preOpData = {
-      ...req.body,
-      Surgery_Success_Probability: mlResponse.data.Surgery_Success_Probability
+    // 3️⃣ Attach ML output
+    const enrichedPreOp = {
+      ...preOpInput,
+      Surgery_Success_Probability:
+        mlResponse.data.Surgery_Success_Probability
     };
 
-    // 3. Save to MongoDB
-    const patient = await Patient.create({ preOp: preOpData });
+    // 4️⃣ Update patient by custom Id
+    const updatedPatient = await Patient.findOneAndUpdate(
+      { Id: patientId },
+      { preOp: enrichedPreOp },
+      { new: true }
+    );
 
-    res.status(201).json({
-      message: "Pre-operative data saved and prediction added",
-      patient
+    res.status(200).json({
+      message: "Pre-operative data updated with prediction",
+      patient: updatedPatient
     });
   } catch (error) {
     console.error(error.message);
