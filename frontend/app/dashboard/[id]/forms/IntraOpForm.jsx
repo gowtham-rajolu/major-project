@@ -84,7 +84,7 @@ export default function IntraOpForm({ patientId, initialData, onSuccess }) {
       {initialData?.IntraOp_Complication_Risk_Percent !== undefined && (
         <ReadOnlyValue
           label="Intra-Op Complication Risk (%)"
-          value={initialData.IntraOp_Complication_Risk_Percent}
+          value={initialData.IntraOp_Complication_Risk_Percent+"%"}
         />
       )}
 
