@@ -1,3 +1,7 @@
+npm install recharts
+
+
+
 step 1:install python virtual environment
 
 python -m venv venv
