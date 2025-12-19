@@ -10,38 +10,39 @@ router.put("/:id", async (req, res) => {
     const patientId = Number(req.params.id);
     const preOpInput = req.body;
 
+    console.log("PreOp Input:", preOpInput);
+
     // 1️⃣ Check patient exists
-    const patientExists = await Patient.findOne({ Id: patientId });
-    if (!patientExists) {
+    const patient = await Patient.findOne({ Id: patientId });
+    if (!patient) {
       return res.status(404).json({ error: "Patient not found" });
     }
 
-    // 2️⃣ Send ONLY preOp data to ML
+    // 2️⃣ Call FastAPI ML
     const mlResponse = await axios.post(
       "http://127.0.0.1:8000/predict/pre-operative",
       preOpInput
     );
 
     // 3️⃣ Attach ML output
-    const enrichedPreOp = {
+    patient.preOp = {
       ...preOpInput,
       Surgery_Success_Probability:
         mlResponse.data.Surgery_Success_Probability
     };
 
-    // 4️⃣ Update patient by custom Id
-    const updatedPatient = await Patient.findOneAndUpdate(
-      { Id: patientId },
-      { preOp: enrichedPreOp },
-      { new: true }
-    );
+    // 🔑 THIS IS THE MISSING LINE (CRITICAL)
+    patient.stages.preOpCompleted = true;
+
+    // 4️⃣ Save patient
+    await patient.save();
 
     res.status(200).json({
       message: "Pre-operative data updated with prediction",
-      patient: updatedPatient
+      patient
     });
   } catch (error) {
-    console.error(error.message);
+    console.error("PreOp Error:", error.message);
     res.status(500).json({ error: "Prediction or DB error" });
   }
 });

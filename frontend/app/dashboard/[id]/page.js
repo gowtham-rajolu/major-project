@@ -1,132 +1,152 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useEffect, useState } from "react";
 import { useParams } from "next/navigation";
 
-export default function Dashboard() {
+import PreOpForm from "./forms/PreOpForm";
+import IntraOpForm from "./forms/IntraOpForm";
+import PostOpForm from "./forms/PostOpForm";
+
+export default function DashboardPage() {
   const { id } = useParams();
 
-  const [preOpData, setPreOpData] = useState({
-    Id: "",
-    Name: "",
-    Age: "",
-    BMI: "",
-    Diabetes: "",
-    Hypertension: "",
-    Heart_Disease: "",
-    Chronic_Kidney_Disease: "",
-    COPD: "",
-    Tumor_Size_cm: "",
-    Tumor_Stage: "",
-    Metastasis: "",
-    ASA_Score: "",
-    ECOG_Score: "",
-    Preop_Hb: "",
-    Preop_WBC: "",
-    Platelets: "",
-    Bilirubin: "",
-    Creatinine: "",
-    INR: "",
-    Albumin: "",
-    CRP: "",
-    Glucose: "",
-    Surgery_Success_Probability: ""
-  });
-
+  const [patient, setPatient] = useState(null);
+  const [activeTab, setActiveTab] = useState("preop");
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
 
-  useEffect(() => {
-    if (!id) return;
+  // ===============================
+  // Fetch patient from backend
+  // ===============================
+  const fetchPatient = async () => {
+    try {
+      setLoading(true);
+      setError("");
 
-    const fetchPatient = async () => {
-      try {
-        setLoading(true);
-        const res = await fetch(`http://localhost:5000/data/${id}`);
-        const data = await res.json();
+      const res = await fetch(`http://localhost:5000/data/${id}`);
+      const data = await res.json();
 
-        if (!res.ok) throw new Error(data.error);
-
-        setPreOpData({
-          Id: data.patient.Id,
-          Name: data.patient.Name,
-          ...data.patient.preOp
-        });
-      } catch (err) {
-        setError(err.message || "Failed to load data");
-      } finally {
-        setLoading(false);
+      if (!res.ok) {
+        throw new Error(data.error || "Failed to fetch patient");
       }
-    };
 
-    fetchPatient();
+      setPatient(data.patient);
+    } catch (err) {
+      setError(err.message);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  // Fetch on load / id change
+  useEffect(() => {
+    if (id) fetchPatient();
   }, [id]);
 
-  if (loading)
-    return <div className="p-10 text-lg font-semibold">Loading patient data…</div>;
+  // ===============================
+  // DEBUG (optional, remove later)
+  // ===============================
+  useEffect(() => {
+    if (patient) {
+      console.log("PATIENT STATE:", patient);
+      console.log("STAGES:", patient.stages);
+    }
+  }, [patient]);
 
-  if (error)
-    return <div className="p-10 text-red-600 font-semibold">{error}</div>;
+  // ===============================
+  // UI STATES
+  // ===============================
+  if (loading) return <p className="p-6">Loading patient data...</p>;
+  if (error) return <p className="p-6 text-red-600">{error}</p>;
+  if (!patient) return null;
 
+  const { stages } = patient;
+
+  // ===============================
+  // RENDER
+  // ===============================
   return (
     <div className="min-h-screen bg-gray-100 p-8">
-      {/* Header */}
-      <div className="mb-6">
-        <h1 className="text-3xl font-bold text-gray-800">Patient Dashboard</h1>
+      {/* ================= HEADER ================= */}
+      <div className="bg-white p-6 rounded-xl shadow mb-6">
+        <h1 className="text-2xl font-bold">Patient Dashboard</h1>
         <p className="text-gray-600">
-          Patient ID: <span className="font-semibold">{preOpData.Id}</span>
+          ID: <b>{patient.Id}</b> | Name: <b>{patient.Name}</b>
         </p>
       </div>
 
-      {/* Basic Info */}
-      <div className="bg-white rounded-xl shadow p-6 mb-6">
-        <h2 className="text-xl font-semibold mb-4">Basic Information</h2>
-        <div className="grid grid-cols-2 gap-4 text-gray-700">
-          <p><strong>Name:</strong> {preOpData.Name}</p>
-          <p><strong>Age:</strong> {preOpData.Age}</p>
-          <p><strong>BMI:</strong> {preOpData.BMI}</p>
-          <p><strong>Diabetes:</strong> {preOpData.Diabetes}</p>
-          <p><strong>Hypertension:</strong> {preOpData.Hypertension}</p>
-          <p><strong>COPD:</strong> {preOpData.COPD}</p>
-        </div>
+      {/* ================= TABS ================= */}
+      <div className="flex gap-3 mb-6">
+        {/* PRE-OP */}
+        <button
+          onClick={() => setActiveTab("preop")}
+          className={`px-4 py-2 rounded ${
+            activeTab === "preop"
+              ? "bg-blue-600 text-white"
+              : "bg-white"
+          }`}
+        >
+          Pre-Op
+        </button>
+
+        {/* INTRA-OP */}
+        <button
+          disabled={!stages.preOpCompleted}
+          onClick={() => setActiveTab("intraop")}
+          className={`px-4 py-2 rounded ${
+            activeTab === "intraop"
+              ? "bg-orange-600 text-white"
+              : "bg-white"
+          } ${
+            !stages.preOpCompleted &&
+            "opacity-50 cursor-not-allowed"
+          }`}
+        >
+          Intra-Op
+        </button>
+
+        {/* POST-OP */}
+        <button
+          disabled={!stages.intraOpCompleted}
+          onClick={() => setActiveTab("postop")}
+          className={`px-4 py-2 rounded ${
+            activeTab === "postop"
+              ? "bg-red-600 text-white"
+              : "bg-white"
+          } ${
+            !stages.intraOpCompleted &&
+            "opacity-50 cursor-not-allowed"
+          }`}
+        >
+          Post-Op
+        </button>
       </div>
 
-      {/* Tumor Details */}
-      <div className="bg-white rounded-xl shadow p-6 mb-6">
-        <h2 className="text-xl font-semibold mb-4">Tumor Details</h2>
-        <div className="grid grid-cols-2 gap-4 text-gray-700">
-          <p><strong>Size (cm):</strong> {preOpData.Tumor_Size_cm}</p>
-          <p><strong>Stage:</strong> {preOpData.Tumor_Stage}</p>
-          <p><strong>Metastasis:</strong> {preOpData.Metastasis}</p>
-          <p><strong>ASA Score:</strong> {preOpData.ASA_Score}</p>
-          <p><strong>ECOG Score:</strong> {preOpData.ECOG_Score}</p>
-        </div>
-      </div>
+      {/* ================= ACTIVE FORM ================= */}
+      <div className="bg-white p-6 rounded-xl shadow">
+        {activeTab === "preop" && (
+          <PreOpForm
+            patientId={patient.Id}
+            initialData={patient.preOp}
+            onSuccess={fetchPatient}
+          />
+        )}
 
-      {/* Lab Values */}
-      <div className="bg-white rounded-xl shadow p-6 mb-6">
-        <h2 className="text-xl font-semibold mb-4">Laboratory Values</h2>
-        <div className="grid grid-cols-3 gap-4 text-gray-700">
-          <p><strong>Hb:</strong> {preOpData.Preop_Hb}</p>
-          <p><strong>WBC:</strong> {preOpData.Preop_WBC}</p>
-          <p><strong>Platelets:</strong> {preOpData.Platelets}</p>
-          <p><strong>Bilirubin:</strong> {preOpData.Bilirubin}</p>
-          <p><strong>Creatinine:</strong> {preOpData.Creatinine}</p>
-          <p><strong>INR:</strong> {preOpData.INR}</p>
-          <p><strong>Albumin:</strong> {preOpData.Albumin}</p>
-          <p><strong>CRP:</strong> {preOpData.CRP}</p>
-          <p><strong>Glucose:</strong> {preOpData.Glucose}</p>
-        </div>
-      </div>
+        {activeTab === "intraop" && (
+          <IntraOpForm
+            patientId={patient.Id}
+            initialData={patient.intraOp}
+            onSuccess={fetchPatient}
+          />
+        )}
 
-      {/* Risk Result */}
-      <div className="bg-red-50 border border-red-200 rounded-xl p-6">
-        <h2 className="text-xl font-semibold text-red-700 mb-2">
-          Surgery Success Probability
-        </h2>
-        <p className="text-4xl font-bold text-red-600">
-          {preOpData.Surgery_Success_Probability}
-        </p>
+        {activeTab === "postop" && (
+          <PostOpForm
+            patientId={patient.Id}
+            initialData={patient.postOp}
+            onSuccess={fetchPatient}
+          />
+        )}
       </div>
     </div>
   );
